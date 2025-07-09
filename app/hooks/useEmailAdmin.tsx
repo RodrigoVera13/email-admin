@@ -46,61 +46,6 @@ export function useEmailAdmin() {
     [companies.length, filteredCompanies.length, selectedCompanies.size, manifiestos.length],
   );
 
-  useEffect(() => {
-    fetchManifiestos();
-  }, []);
-
-  const fetchManifiestos = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("https://msoftperu.azurewebsites.net/home/GetManifiestoNumerado?strRuc=");
-
-      if (!response.ok) {
-        throw new Error("Error al obtener los datos");
-      }
-
-      const data = await response.json();
-      setManifiestos(data);
-
-      const groupedData = groupByCompany(data);
-      setCompanies(groupedData);
-
-      toast({
-        title: "Datos cargados",
-        description: `Se encontraron ${groupedData.length} empresas con ${data.length} manifiestos`,
-      });
-    } catch (error) {
-      console.error("Error:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los datos. Usando datos de ejemplo.",
-        variant: "destructive",
-      });
-
-      const exampleData = Array.from({ length: 276 }, (_, i) => ({
-        MANIFIESTO: `${1551 + i}`,
-        DES_NAVE: `NAVE EJEMPLO ${(i % 10) + 1}`,
-        OMI: `99604${97 + (i % 100)}`,
-        ETA: `${15 + (i % 15)}/07/2025 05:00:00`,
-        ATA: i % 3 === 0 ? `${16 + (i % 15)}/07/2025 08:00:00` : "",
-        NROBLM: `GMSUJKT811386${i}`,
-        POL: "CNSHA",
-        POD: "PECLL",
-        RUC_FFW: `2051103211${i % 96}`,
-        DES_FFW: `EMPRESA EJEMPLO ${(i % 96) + 1} S.A.C.`,
-        ADUANA: "118",
-        ANIO: "2025",
-        DES_AGENTE: `AGENTE EJEMPLO ${(i % 20) + 1}`,
-      }));
-
-      setManifiestos(exampleData);
-      const groupedData = groupByCompany(exampleData);
-      setCompanies(groupedData);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const groupByCompany = useCallback((data: ManifiestoItem[]): CompanyGroup[] => {
     const grouped = data.reduce(
       (acc, item) => {

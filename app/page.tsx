@@ -26,8 +26,12 @@ export default function EmailAdminPage() {
     handleEmailChange,
     saveCompanyEmail,
     sendToCompany,
-    sendToAllClients,
+    sendToActiveClients,
+    sendToSelectedClients,
+    sendToAll,
     saveSelectedToDatabase,
+    showOnlySelected,
+    setShowOnlySelected,
   } = useEmailAdmin();
 
   if (loading) {
@@ -44,15 +48,19 @@ export default function EmailAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 p-4 isolate">
+     <div className="max-w-screen-2xl mx-auto space-y-6">
         <Header totalRegistros={stats.totalRegistros} />
         <FilterActions
           searchTerm={searchTerm}
           onSearchTermChange={setSearchTerm}
           onSelectAll={handleSelectAll}
           onSaveSelected={saveSelectedToDatabase}
-          onSendToAll={sendToAllClients}
+           showOnlySelected={showOnlySelected}
+    onShowOnlySelectedChange={setShowOnlySelected}
+          onSendToActive={sendToActiveClients}
+          onSendToSelected={sendToSelectedClients}
+          onSendToAll={sendToAll}
           saving={saving}
           sending={sending}
           selectedCount={selectedCompanies.size}

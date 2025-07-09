@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useToast } from "../../components/ui/use-toast";
+import { toast } from "sonner";
 import { ManifiestoItem, CompanyGroup } from "../types";
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface DbClient {
   ruc: string;
@@ -18,12 +18,11 @@ export function useEmailAdmin() {
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const { toast } = useToast();
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
+
 
   const filteredCompanies = useMemo(() => {
-    if (!searchTerm) return companies;
-
-    return companies.filter(
+    const bySearchTerm = companies.filter(
       (company) =>
         company.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         company.ruc.includes(searchTerm) ||
@@ -34,7 +33,13 @@ export function useEmailAdmin() {
             m.NROBLM.toLowerCase().includes(searchTerm.toLowerCase()),
         ),
     );
-  }, [companies, searchTerm]);
+
+    if (showOnlySelected) {
+      return bySearchTerm.filter(company => selectedCompanies.has(company.id));
+    }
+
+    return bySearchTerm;
+  }, [companies, searchTerm, showOnlySelected, selectedCompanies]);
 
   const stats = useMemo(
     () => ({
@@ -72,13 +77,13 @@ export function useEmailAdmin() {
   }, []);
 
   // -- LÓGICA DE CARGA INICIAL ACTUALIZADA --
-  useEffect(() => {
+ useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
       try {
         const [manifiestoResponse, dbClientsResponse] = await Promise.all([
           fetch("https://msoftperu.azurewebsites.net/home/GetManifiestoNumerado?strRuc="),
-          fetch("/api/Clientes"),
+          fetch(`${API_BASE_URL}/api_noti_clientes.php`),
         ]);
 
         if (!manifiestoResponse.ok) throw new Error("Error al obtener manifiestos");
@@ -86,87 +91,61 @@ export function useEmailAdmin() {
 
         const manifiestoData = await manifiestoResponse.json();
         const dbClients: DbClient[] = await dbClientsResponse.json();
-
-        // Un mapa para buscar clientes de la BD por RUC fácilmente
+        
         const dbClientsMap = new Map(dbClients.map(c => [c.ruc, c]));
-
         const groupedData = groupByCompany(manifiestoData);
         const initialSelected = new Set<string>();
 
-        // Mapeamos los datos agrupados para integrar la información de la BD
+        // --- LÓGICA CORRECTA ---
         const companiesWithDbData = groupedData.map(company => {
           const dbClient = dbClientsMap.get(company.ruc);
+
+          // Primero, verificamos si la empresa existe en la base de datos
           if (dbClient) {
-            // Si el cliente está activo (1), lo añadimos a la selección inicial
+            // Si existe, SIEMPRE asignamos su email
+            const updatedCompany = { ...company, email: dbClient.email || "" };
+            
+            // DE FORMA SEPARADA, decidimos si debe estar seleccionada
             if (dbClient.flag_activo === 1) {
               initialSelected.add(company.id);
             }
-            // Retornamos la empresa con el email de la BD
-            return { ...company, email: dbClient.email || "" };
+            
+            return updatedCompany;
           }
-          return company; // Si no está en la BD, la retornamos como está
+          
+          // Si la empresa no está en la BD, se retorna sin cambios
+          return company;
         });
 
         setManifiestos(manifiestoData);
         setCompanies(companiesWithDbData);
         setSelectedCompanies(initialSelected);
 
-        toast({
-          title: "Datos Cargados",
-          description: `Se encontraron ${groupedData.length} empresas. ${initialSelected.size} activas.`,
-        });
+        toast.info(`Datos cargados. ${initialSelected.size} empresas activas.`);
       } catch (error) {
         console.error("Error:", error);
-        toast({
-          title: "Error de Carga",
-          description: "No se pudieron cargar los datos.",
-          variant: "destructive",
-        });
+        toast.error("No se pudieron cargar los datos.");
       } finally {
         setLoading(false);
       }
     };
 
-    loadInitialData();
-  }, [groupByCompany, toast]);
+    loadInitialData();saveSelectedToDatabase 
+  }, [groupByCompany]); 
 
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
-const handleSelectCompany = useCallback((companyId: string) => {
-        const newSelectedCompanies = new Set(selectedCompanies);
-        const isCurrentlySelected = newSelectedCompanies.has(companyId);
-        if (isCurrentlySelected) {
-            newSelectedCompanies.delete(companyId);
-        } else {
-            newSelectedCompanies.add(companyId);
-        }
-        setSelectedCompanies(newSelectedCompanies);
-        if (debounceTimeout.current) {
-            clearTimeout(debounceTimeout.current);
-        }
-        debounceTimeout.current = setTimeout(async () => {
-            const newStatus = !isCurrentlySelected ? 1 : 0;
-            try {
-                const response = await fetch('/api/Clientes/status', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ruc: companyId, flag_activo: newStatus }),
-                });
-
-                if (!response.ok) {
-                    throw new Error('No se pudo actualizar el estado.');
-                }
-            } catch (error) {
-                toast({
-                    title: "Error de Sincronización",
-                    description: "No se pudo guardar el último cambio.",
-                    variant: "destructive",
-                });
-                console.error("Error updating company status:", error);
-            }
-        }, 500); 
-
-    }, [selectedCompanies, toast]);
+  const handleSelectCompany = useCallback((companyId: string) => {
+    setSelectedCompanies((prevSelected) => {
+      const newSelected = new Set(prevSelected);
+      if (newSelected.has(companyId)) {
+        newSelected.delete(companyId);
+      } else {
+        newSelected.add(companyId);
+      }
+      return newSelected;
+    });
+  }, []);
 
   const handleSelectAll = useCallback(() => {
     setSelectedCompanies((prev) => {
@@ -190,12 +169,12 @@ const handleSelectCompany = useCallback((companyId: string) => {
 
   const saveCompanyEmail = useCallback(async (companyId: string, email: string, companyName: string) => {
     if (!email.trim()) {
-      toast({ title: "Email requerido", variant: "destructive" });
+      toast.error("El email es requerido");
       return;
     }
     setSavingEmails(prev => new Set(prev).add(companyId));
     try {
-      const response = await fetch('/api/Clientes', {
+      const response = await fetch(`${API_BASE_URL}/api_noti_clientes.php`, {
         method: 'PUT', // Usamos PUT para esta acción específica
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ruc: companyId, nombre: companyName, email: email })
@@ -203,17 +182,10 @@ const handleSelectCompany = useCallback((companyId: string) => {
 
       if (!response.ok) throw new Error('Error al guardar el email.');
 
-      toast({
-        title: "Email Guardado",
-        description: `Email ${email} guardado para ${companyName}.`,
-      });
+      toast.success(`Email para ${companyName} guardado exitosamente.`);
     } catch (error) {
       console.error("Error:", error);
-      toast({
-        title: "Error",
-        description: `No se pudo guardar el email para ${companyName}.`,
-        variant: "destructive",
-      });
+      toast.error(`No se pudo guardar el email para ${companyName}.`);
     } finally {
       setSavingEmails(prev => {
         const newSet = new Set(prev);
@@ -224,77 +196,179 @@ const handleSelectCompany = useCallback((companyId: string) => {
   }, [toast]);
 
   const sendToCompany = useCallback(
-    async (ruc: string, companyName: string) => {
+    async (ruc: string, companyName: string, email: string) => {
+      // 1. Mostramos un toast de carga inicial
+      const toastId = toast.loading(`📨 Iniciando envío para: ${companyName}`, {
+        description: "Conectando con el servidor...",
+      });
+
       try {
         const baseUrl = "https://www.node.miranda-soft.com.pe/notificaciones/verificar_estado.php";
-        const response = await fetch(`${baseUrl}?ruc=${ruc}`);
+        const response = await fetch(`${baseUrl}?ruc=${ruc}&email=${email}`);
 
-        if (response.ok) {
-          toast({
-            title: "Enviado exitosamente",
-            description: `Notificación enviada a ${companyName}`,
-          });
-        } else {
-          throw new Error("Error en el envío");
+        if (!response.body) {
+          throw new Error("El servidor no proporcionó una respuesta válida.");
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        // 2. Bucle para leer el stream de datos
+        while (true) {
+          const { done, value } = await reader.read();
+
+          // Si el stream ha terminado, salimos del bucle.
+          // La notificación de éxito o error ya se habrá mostrado.
+          if (done) {
+            break;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
+          // Un chunk puede contener varios eventos, los separamos
+          const events = chunk.split('\n\n').filter(e => e.startsWith('data: '));
+
+          for (const event of events) {
+            try {
+              // Extraemos y parseamos el JSON del evento
+              const data = JSON.parse(event.replace('data: ', ''));
+
+              // 3. Lógica para mostrar el toast correcto según el tipo de mensaje
+              if (data.tipo === 'exito') {
+                // Si es el mensaje de éxito, actualizamos el toast a "success"
+                toast.success(`✅ Envío a ${companyName} completado`, {
+                  id: toastId,
+                  description: data.mensaje, // <-- Usamos el mensaje del servidor
+                });
+              } else if (data.tipo !== 'finalizado') {
+                // Para cualquier otro tipo (info, progreso), actualizamos el de carga
+                toast.loading(`Procesando: ${companyName}`, {
+                  id: toastId,
+                  description: data.mensaje || `${data.manifiesto} → ${data.estado || ''} (${data.conteo || ''})`,
+                });
+              }
+              // Ignoramos el mensaje de tipo "finalizado" para no sobreescribir el de éxito
+
+            } catch (e) {
+              // Ignoramos errores si un chunk de JSON llega incompleto
+            }
+          }
         }
       } catch (error) {
-        console.error("Error:", error);
-        toast({
-          title: "Error",
-          description: `Error al enviar notificación a ${companyName}`,
-          variant: "destructive",
+        console.error("Error durante el envío:", error);
+        // Si algo falla, actualizamos el toast para mostrar un mensaje de error
+        toast.error(`❌ Error en envío a ${companyName}`, {
+          id: toastId,
+          description: "No se pudo completar el proceso. Revisa la consola para más detalles.",
         });
       }
     },
-    [toast],
+    [], // Ya no se necesita `toast` como dependencia
   );
 
-  const sendToAllClients = useCallback(async () => {
-    try {
-      setSending(true);
-      const baseUrl = "https://www.node.miranda-soft.com.pe/notificaciones/verificar_estado.php";
-      const response = await fetch(`${baseUrl}?ruc=`);
+  // --- LÓGICA DE ENVÍO MASIVO  ---
 
-      if (response.ok) {
-        toast({
-          title: "Enviado exitosamente",
-          description: `Notificaciones enviadas a todos los clientes`,
+  const sendNotifications = useCallback(async ({ flag, rucs = '', type = 'general' }) => {
+    setSending(true);
+    const toastId = toast.loading(`Iniciando envío para: ${type}...`, {
+      description: "Conectando con el servidor...",
+    });
+
+    try {
+      const baseUrl = "https://www.node.miranda-soft.com.pe/notificaciones/verificar_estado.php";
+      const response = await fetch(`${baseUrl}?ruc=&email=&flag=${flag}`);
+
+      if (!response.ok || !response.body) {
+        throw new Error("El servidor no proporcionó una respuesta válida.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let finalMessage = "El proceso finalizó sin un mensaje de confirmación.";
+      let hasSucceeded = false;
+
+      // Leemos el stream hasta el final
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const events = chunk.split('\n\n').filter(e => e.startsWith('data: '));
+
+        for (const event of events) {
+          try {
+            const data = JSON.parse(event.replace('data: ', ''));
+            // Actualizamos el toast de carga con el progreso
+            if (data.mensaje) {
+              toast.loading(`Enviando a ${type}`, {
+                id: toastId,
+                description: data.mensaje
+              });
+            }
+            // Guardamos el último mensaje de éxito o finalización
+            if (data.tipo === 'exito' || data.tipo === 'finalizado') {
+              finalMessage = data.mensaje;
+              hasSucceeded = true;
+            }
+          } catch (e) { /* Ignorar errores de parseo de chunks incompletos */ }
+        }
+      }
+
+      // Mostramos el toast final con el último mensaje guardado
+      if (hasSucceeded) {
+        toast.success("Envío completado", {
+          id: toastId,
+          description: finalMessage,
         });
       } else {
-        throw new Error("Error en el envío");
+        throw new Error(finalMessage);
       }
-    } catch (error) {
-      console.error("Error:", error);
-      toast({
-        title: "Error",
-        description: "Error al enviar las notificaciones",
-        variant: "destructive",
+
+    } catch (error: any) {
+      console.error("Error en el envío masivo:", error);
+      toast.error("Error en el envío", {
+        id: toastId,
+        description: error.message || "No se pudo completar el proceso.",
       });
     } finally {
       setSending(false);
     }
-  }, [toast]);
+  }, []);
+
+  const sendToActiveClients = useCallback(() => {
+    // Flag 1: Envía a los clientes marcados como activos en la BD
+    sendNotifications({ flag: 1, type: 'Clientes Activos' });
+  }, [sendNotifications]);
+
+  const sendToSelectedClients = useCallback(() => {
+    // Flag 2: Envía solo a los RUCs seleccionados en la UI
+    const rucs = Array.from(selectedCompanies).join(',');
+    sendNotifications({ flag: 2, rucs, type: 'Clientes Seleccionados' });
+  }, [sendNotifications, selectedCompanies]);
+
+  const sendToAll = useCallback(() => {
+    // Flag 3: Envía a todos los clientes sin distinción
+    sendNotifications({ flag: 3, type: 'Todos los Clientes' });
+  }, [sendNotifications]);
 
   const saveSelectedToDatabase = useCallback(async () => {
-  
-    const companiesToSave = companies.filter(company => selectedCompanies.has(company.id));
-
-    if (companiesToSave.length === 0) {
-      toast({
-        title: "Sin selección",
-        description: "No hay empresas seleccionadas para guardar.",
-        variant: "destructive",
-      });
-      return;
+    if (filteredCompanies.length === 0) {
+      toast.error("Sin cambios", {
+        description: "No hay empresas en la lista para guardar."
+      }); return;
     }
 
     setSaving(true);
     try {
-      // Enviamos solo el array de empresas seleccionadas.
-      const response = await fetch('/api/Clientes', {
+      // Preparamos el payload con todas las empresas visibles y los RUCs de las seleccionadas.
+      const payload = {
+        companies: filteredCompanies,
+        selectedRucs: Array.from(selectedCompanies),
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api_noti_clientes.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(companiesToSave),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -302,21 +376,18 @@ const handleSelectCompany = useCallback((companyId: string) => {
         throw new Error(errorData.message || 'Error en la respuesta del servidor');
       }
 
-      toast({
-        title: "Guardado Exitoso",
-        description: `${companiesToSave.length} empresas han sido guardadas como activas.`,
+      toast.success("Guardado Exitoso", {
+        description: "Los cambios han sido guardados en la base de datos.",
       });
     } catch (error: any) {
       console.error("Error:", error);
-      toast({
-        title: "Error al Guardar",
+      toast.error("Error al Guardar", {
         description: error.message || "No se pudo guardar la selección.",
-        variant: "destructive",
       });
     } finally {
       setSaving(false);
     }
-  }, [companies, selectedCompanies, toast]);
+  }, [filteredCompanies, selectedCompanies, toast]);
   return {
     manifiestos,
     companies,
@@ -335,7 +406,11 @@ const handleSelectCompany = useCallback((companyId: string) => {
     handleEmailChange,
     saveCompanyEmail,
     sendToCompany,
-    sendToAllClients,
+    sendToActiveClients,
+    sendToSelectedClients,
+    sendToAll,
     saveSelectedToDatabase,
+    showOnlySelected,
+    setShowOnlySelected,
   };
 }

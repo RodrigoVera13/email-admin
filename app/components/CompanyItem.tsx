@@ -1,21 +1,21 @@
 import type React from "react";
 import { memo, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Badge } from "../../components/ui/badge";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Collapsible, CollapsibleContent } from "../../components/ui/collapsible";
 import { Loader2, Send, ChevronDown, ChevronRight, Save } from "lucide-react";
-import { CompanyGroup } from "@/types";
+import { CompanyGroup } from "../types";
 
 interface CompanyItemProps {
   company: CompanyGroup;
   isSelected: boolean;
   onSelect: (id: string) => void;
   onToggleExpansion: (id: string) => void;
-  onSendToCompany: (ruc: string, name: string) => void;
+   onSendToCompany: (ruc: string, name: string, email: string) => void; 
   onEmailChange: (companyId: string, email: string) => void;
   onSaveEmail: (companyId: string, email: string, companyName: string) => void;
   savingEmails: Set<string>;
@@ -40,9 +40,9 @@ const CompanyItem = memo(
       onToggleExpansion(company.id);
     }, [onToggleExpansion, company.id]);
 
-    const handleSend = useCallback(() => {
-      onSendToCompany(company.ruc, company.nombre);
-    }, [onSendToCompany, company.ruc, company.nombre]);
+      const handleSend = useCallback(() => {
+      onSendToCompany(company.ruc, company.nombre, company.email);
+    }, [onSendToCompany, company.ruc, company.nombre, company.email]);
 
     const handleEmailChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {

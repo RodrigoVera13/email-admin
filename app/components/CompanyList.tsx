@@ -1,8 +1,8 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "../../components/ui/scroll-area";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { AlertCircle } from "lucide-react";
 import CompanyItem from "./CompanyItem";
-import { CompanyGroup } from "@/types";
+import { CompanyGroup } from "../types";
 
 interface CompanyListProps {
   companies: CompanyGroup[];
@@ -10,7 +10,7 @@ interface CompanyListProps {
   savingEmails: Set<string>;
   onSelectCompany: (id: string) => void;
   onToggleExpansion: (id: string) => void;
-  onSendToCompany: (ruc: string, name: string) => void;
+  onSendToCompany: (ruc: string, name: string, email: string) => void;
   onEmailChange: (companyId: string, email: string) => void;
   onSaveEmail: (companyId: string, email: string, companyName: string) => void;
 }
@@ -26,7 +26,7 @@ export default function CompanyList({
   onSaveEmail,
 }: CompanyListProps) {
   return (
-    <Card>
+    <Card className="relative z-10">
       <CardHeader>
         <CardTitle>Lista de Manifiestos</CardTitle>
         <CardDescription>Selecciona los elementos a los que deseas enviar notificaciones</CardDescription>

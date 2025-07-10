@@ -12,6 +12,7 @@ export interface ManifiestoItem {
   ADUANA: string;
   ANIO: string;
   DES_AGENTE: string;
+  PTO_CERCANO: string; 
 }
 
 export interface CompanyGroup {

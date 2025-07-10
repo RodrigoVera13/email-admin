@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../components/ui/button";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Badge } from "../../components/ui/badge";
+import { ShipWheel } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Collapsible, CollapsibleContent } from "../../components/ui/collapsible";
@@ -124,14 +125,11 @@ const CompanyItem = memo(
             <div className="px-4 pb-4 border-t bg-gray-50">
               <div className="mt-4 space-y-2">
                 {company.manifiestos.map((manifiesto, index) => (
-                  <div
-                    key={`${manifiesto.MANIFIESTO}-${index}`}
-                    className="grid grid-cols-5 gap-4 p-3 bg-white rounded border text-sm"
-                  >
+                  <div key={`${manifiesto.MANIFIESTO}-${index}`} className="grid grid-cols-6 gap-4 p-3 bg-white rounded border text-sm">
                     <div>
                       <Label className="text-xs text-muted-foreground">Manifiesto</Label>
                       <p className="font-mono font-medium">{manifiesto.MANIFIESTO}</p>
-                      <p className="text-xs text-muted-foreground">Año: {manifiesto.ANIO}</p>
+                      <p className="text-xs text-muted-foreground">Aduana: {manifiesto.ADUANA} - Año: {manifiesto.ANIO}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Nave</Label>
@@ -140,24 +138,27 @@ const CompanyItem = memo(
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Ruta</Label>
-                      <p>
-                        {manifiesto.POL} → {manifiesto.POD}
-                      </p>
+                      <p>{manifiesto.POL} → {manifiesto.POD}</p>
                       <p className="text-xs text-muted-foreground">BL: {manifiesto.NROBLM}</p>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">ETA</Label>
+                      <Label className="text-xs text-muted-foreground">ETA / ATA</Label>
                       <p>{manifiesto.ETA}</p>
-                      {manifiesto.ATA && (
-                        <>
-                          <Label className="text-xs text-muted-foreground">ATA</Label>
-                          <p className="text-green-600">{manifiesto.ATA}</p>
-                        </>
-                      )}
+                      {manifiesto.ATA && <p className="text-green-600">{manifiesto.ATA}</p>}
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Agente</Label>
                       <p className="text-xs">{manifiesto.DES_AGENTE}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Puerto Cercano</Label>
+                      {manifiesto.PTO_CERCANO && manifiesto.PTO_CERCANO !== "NO" ? (
+                        <Badge variant="default" className="bg-green-100 text-green-800 flex items-center gap-1">
+                          <ShipWheel className="h-3 w-3"/> {manifiesto.PTO_CERCANO}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">No</Badge>
+                      )}
                     </div>
                   </div>
                 ))}

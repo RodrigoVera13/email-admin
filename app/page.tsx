@@ -32,6 +32,8 @@ export default function EmailAdminPage() {
     saveSelectedToDatabase,
     showOnlySelected,
     setShowOnlySelected,
+      verifyingRuc,
+    verifyCompanyNumerados,
   } = useEmailAdmin();
 
   if (loading) {
@@ -82,6 +84,8 @@ export default function EmailAdminPage() {
           onSendToCompany={sendToCompany}
           onEmailChange={handleEmailChange}
           onSaveEmail={saveCompanyEmail}
+           verifyingRuc={verifyingRuc}
+          onVerifyCompany={verifyCompanyNumerados}
         />
       </div>
     </div>

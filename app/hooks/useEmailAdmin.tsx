@@ -19,6 +19,7 @@ export function useEmailAdmin() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showOnlySelected, setShowOnlySelected] = useState(false);
+   const [verifyingRuc, setVerifyingRuc] = useState<string | null>(null);
 
 
   const filteredCompanies = useMemo(() => {
@@ -265,6 +266,49 @@ export function useEmailAdmin() {
     [], // Ya no se necesita `toast` como dependencia
   );
 
+
+  const verifyCompanyNumerados = useCallback(async (ruc: string) => {
+    setVerifyingRuc(ruc);
+    const toastId = toast.loading("Verificando manifiestos numerados...");
+
+    try {
+      const response = await fetch(`https://www.node.miranda-soft.com.pe/notificaciones/verificar_numerados.php?ruc=${ruc}`);
+      if (!response.ok) {
+        throw new Error("La respuesta del servidor no fue exitosa.");
+      }
+      const numerados: any[] = await response.json();
+
+      // Creamos un Set con los manifiestos numerados para una búsqueda rápida
+      const numeradosSet = new Set(numerados.map(n => n.Manifiesto.split('-')[2]));
+      
+      setCompanies(prevCompanies => 
+        prevCompanies.map(company => {
+          if (company.ruc === ruc) {
+            const updatedManifiestos = company.manifiestos.map(manifiesto => {
+              // Comprobamos si el manifiesto está en el set de numerados
+              const isNumerado = numeradosSet.has(manifiesto.MANIFIESTO);
+              // Asignamos explícitamente true o false
+              return { ...manifiesto, isNumerado: isNumerado };
+            });
+            return { ...company, manifiestos: updatedManifiestos };
+          }
+          return company;
+        })
+      );
+
+      toast.success(`${numerados.length} manifiestos numerados encontrados.`, { id: toastId });
+
+    } catch (error: any) {
+      console.error("Error al verificar:", error);
+      toast.error("Error al verificar los manifiestos.", {
+        id: toastId,
+        description: error.message,
+      });
+    } finally {
+      setVerifyingRuc(null);
+    }
+  }, []);
+
   // --- LÓGICA DE ENVÍO MASIVO  ---
 
   const sendNotifications = useCallback(async ({ flag, rucs = '', type = 'general' }) => {
@@ -412,5 +456,7 @@ export function useEmailAdmin() {
     saveSelectedToDatabase,
     showOnlySelected,
     setShowOnlySelected,
+     verifyingRuc,
+    verifyCompanyNumerados,
   };
 }

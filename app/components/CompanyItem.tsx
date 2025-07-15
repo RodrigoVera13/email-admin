@@ -8,8 +8,9 @@ import { ShipWheel } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Collapsible, CollapsibleContent } from "../../components/ui/collapsible";
-import { Loader2, Send, ChevronDown, ChevronRight, Save } from "lucide-react";
+import { Loader2, Send, ChevronDown, ChevronRight, Save, SearchCode } from "lucide-react";
 import { CompanyGroup } from "../types";
+
 
 interface CompanyItemProps {
   company: CompanyGroup;
@@ -20,6 +21,8 @@ interface CompanyItemProps {
   onEmailChange: (companyId: string, email: string) => void;
   onSaveEmail: (companyId: string, email: string, companyName: string) => void;
   savingEmails: Set<string>;
+  isVerifying: boolean;
+  onVerify: (ruc: string) => void;
 }
 
 const CompanyItem = memo(
@@ -32,6 +35,8 @@ const CompanyItem = memo(
     onEmailChange,
     onSaveEmail,
     savingEmails,
+       isVerifying,
+    onVerify,
   }: CompanyItemProps) => {
     const handleSelect = useCallback(() => {
       onSelect(company.id);
@@ -56,6 +61,7 @@ const CompanyItem = memo(
       onSaveEmail(company.id, company.email, company.nombre);
     }, [onSaveEmail, company.id, company.email, company.nombre]);
 
+     const handleVerify = useCallback(() => onVerify(company.ruc), [onVerify, company.ruc]);
     const isSavingEmail = savingEmails.has(company.id);
 
     return (
@@ -114,10 +120,16 @@ const CompanyItem = memo(
             </div>
           </div>
 
-          <Button onClick={handleSend} size="sm" className="ml-4">
-            <Send className="mr-2 h-4 w-4" />
-            Enviar
-          </Button>
+            <div className="flex flex-col gap-2 ml-4">
+              <Button onClick={handleVerify} size="sm" variant="outline" disabled={isVerifying}>
+                {isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <SearchCode className="mr-2 h-4 w-4" />}
+                Verificar
+              </Button>
+              <Button onClick={handleSend} size="sm">
+                <Send className="mr-2 h-4 w-4" />
+                Enviar
+              </Button>
+          </div>
         </div>
 
         <Collapsible open={company.isExpanded}>
@@ -125,7 +137,16 @@ const CompanyItem = memo(
             <div className="px-4 pb-4 border-t bg-gray-50">
               <div className="mt-4 space-y-2">
                 {company.manifiestos.map((manifiesto, index) => (
-                  <div key={`${manifiesto.MANIFIESTO}-${index}`} className="grid grid-cols-6 gap-4 p-3 bg-white rounded border text-sm">
+<div 
+                    key={`${manifiesto.MANIFIESTO}-${index}`} 
+                    className={`grid grid-cols-6 gap-4 p-3 bg-white rounded border-l-4 text-sm ${
+                      manifiesto.isNumerado === true
+                        ? 'border-l-green-500' 
+                        : manifiesto.isNumerado === false
+                        ? 'border-l-red-500'  
+                        : 'border-l-gray-300'  
+                    }`}
+                  >
                     <div>
                       <Label className="text-xs text-muted-foreground">Manifiesto</Label>
                       <p className="font-mono font-medium">{manifiesto.MANIFIESTO}</p>

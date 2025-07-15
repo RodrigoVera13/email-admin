@@ -13,6 +13,8 @@ interface CompanyListProps {
   onSendToCompany: (ruc: string, name: string, email: string) => void;
   onEmailChange: (companyId: string, email: string) => void;
   onSaveEmail: (companyId: string, email: string, companyName: string) => void;
+    verifyingRuc: string | null;
+  onVerifyCompany: (ruc: string) => void;
 }
 
 export default function CompanyList({
@@ -24,6 +26,8 @@ export default function CompanyList({
   onSendToCompany,
   onEmailChange,
   onSaveEmail,
+    verifyingRuc,
+  onVerifyCompany,
 }: CompanyListProps) {
   return (
     <Card className="relative z-10">
@@ -45,6 +49,8 @@ export default function CompanyList({
                 onEmailChange={onEmailChange}
                 onSaveEmail={onSaveEmail}
                 savingEmails={savingEmails}
+                  isVerifying={verifyingRuc === company.ruc}
+                onVerify={onVerifyCompany}
               />
             ))}
 
